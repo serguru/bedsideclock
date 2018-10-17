@@ -27,26 +27,36 @@
             android:id="@+id/tcTime"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="12:00 am"
-            android:textSize="120dp"
             android:layout_centerHorizontal="true"
-            android:textColor="#1AFFFFFF"
+            android:text="12:00 am"
             android:textAlignment="center"
-            />
+            android:textColor="#1AFFFFFF"
+            android:textSize="80dp" />
         <!--android:format12Hour="h:mm"-->
 
         <TextClock
             android:id="@+id/tcDate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Thursday, October 4, 2018"
-            android:textSize="50dp"
-            android:layout_centerHorizontal="true"
             android:layout_below="@id/tcTime"
+            android:layout_centerHorizontal="true"
+            android:format12Hour="EEEE, MMMM d, yyyyy"
+            android:text="Thursday, October 4, 2018"
             android:textAlignment="center"
             android:textColor="#1AFFFFFF"
-            android:format12Hour="EEEE, MMMM d, yyyyy"
-            />
+            android:textSize="30dp" />
+
+        <TextView
+            android:id="@+id/tvAlarm"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/tcDate"
+            android:layout_centerHorizontal="true"
+            android:text="Alarm at 6:45 am in 7 h 12 m"
+            android:textAlignment="center"
+            android:textColor="#1AFFFFFF"
+            android:textSize="24dp"
+            android:visibility="gone" />
 
     </RelativeLayout>
 

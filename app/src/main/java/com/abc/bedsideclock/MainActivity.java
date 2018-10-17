@@ -1,47 +1,62 @@
 package com.abc.bedsideclock;
 
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.app.AlarmManager;
 import android.content.res.ColorStateList;
+import android.graphics.Color;
+import android.graphics.Point;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
+import android.util.TypedValue;
+import android.view.Display;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
+import android.view.View;
 import android.view.WindowManager;
 import android.widget.TextView;
 
+import java.sql.Time;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.TimeZone;
+
+import javax.xml.datatype.Duration;
+
 public class MainActivity extends AppCompatActivity {
 
-    private TextView tcTime, tcDate;
+    private static final String TAG = "BedsideClockActivity";
+
+    private TextView tcTime, tcDate, tvAlarm;
     private GestureDetector gestureDetector;
 
-    private int[] colors = {
-            0xFFFFFFFF,
-            0xF2FFFFFF,
-            0xE6FFFFFF,
-            0xD9FFFFFF,
-            0xCCFFFFFF,
-            0xBFFFFFFF,
-            0xB3FFFFFF,
-            0xA6FFFFFF,
-            0x99FFFFFF,
-            0x8CFFFFFF,
-            0x80FFFFFF,
-            0x73FFFFFF,
-            0x66FFFFFF,
-            0x59FFFFFF,
-            0x4DFFFFFF,
-            0x40FFFFFF,
-            0x33FFFFFF,
-            0x26FFFFFF,
-            0x1AFFFFFF,
-            0x0DFFFFFF,
-            0x00FFFFFF
-    };
+    private Color currentColor;
+
+    private int breakAlpha = 50;
+
+    private int screenWidth, screenHeight;
+
+    private AlarmManager alarmManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        alarmManager = (AlarmManager)getSystemService(Activity.ALARM_SERVICE);
+
+        Display display = getWindowManager().getDefaultDisplay();
+        Point size = new Point();
+        display.getSize(size);
+        screenWidth = size.x;
+        screenHeight = size.y;
+
         setContentView(R.layout.activity_main);
         tcTime = findViewById(R.id.tcTime);
 
@@ -62,6 +77,76 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 tcTime.setText(s.toString().toLowerCase());
+
+
+                @SuppressLint({"NewApi", "LocalSuppress"})
+                AlarmManager.AlarmClockInfo info = alarmManager.getNextAlarmClock();
+
+                if (info == null)
+                {
+                    tvAlarm.setVisibility(View.GONE);
+                    return;
+                }
+
+                @SuppressLint({"NewApi", "LocalSuppress"})
+                long timestamp = info.getTriggerTime();
+
+                Date now = new Date();
+                Date alarmDate = new Date(timestamp);
+
+                long diff = timestamp - now.getTime();
+
+                if (diff <= 0)
+                {
+                    tvAlarm.setVisibility(View.GONE);
+                    return;
+                }
+
+                double days, hours, minutes;
+
+                String daysStr = "", hoursStr = "", minutesStr = "";
+
+                int millisecondsInDay = 1000 * 60 * 60 * 24;
+
+                days = (double)diff / (double)millisecondsInDay;
+
+                if (days > 1)
+                {
+                    long daysLong = (long)days;
+                    daysStr = " " + Long.toString(daysLong) + " d";
+                    diff -= daysLong * millisecondsInDay;
+                }
+
+                int millisecondsInHour = 1000 * 60 * 60;
+
+                hours = (double)diff / (double)millisecondsInHour;
+
+                if (hours > 1)
+                {
+                    long hoursLong = (long)hours;
+                    hoursStr = (hoursLong < 10 ? " 0" : " ") + Long.toString(hoursLong) + " h";
+                    diff -= hoursLong * millisecondsInHour;
+                }
+
+                int millisecondsInMinute = 1000 * 60;
+
+                minutes = (double)diff / (double)millisecondsInMinute;
+
+                if (minutes > 1)
+                {
+                    long minutesLong = (long)minutes;
+                    minutesStr = (minutesLong < 10 ? " 0" : " ") + Long.toString(minutesLong) + " m";
+                }
+
+                DateFormat dateFormat1 = new SimpleDateFormat("dd MMM");
+                DateFormat dateFormat2 = new SimpleDateFormat("h:mm a");
+
+                String text = "Alarm on " + dateFormat1.format(timestamp) + " at " +
+                        dateFormat2.format(timestamp).toLowerCase() +
+                        " in" + daysStr + hoursStr + minutesStr;
+
+                tvAlarm.setText(text);
+                tvAlarm.setVisibility(View.VISIBLE);
             }
 
             @Override
@@ -72,6 +157,8 @@ public class MainActivity extends AppCompatActivity {
 
         tcDate = findViewById(R.id.tcDate);
 
+        tvAlarm = findViewById(R.id.tvAlarm);
+
         AndroidGestureDetector androidGestureDetector = new AndroidGestureDetector();
 
         gestureDetector = new GestureDetector(MainActivity.this, androidGestureDetector);
@@ -81,7 +168,8 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public boolean onSingleTapConfirmed(MotionEvent e) {
-            setNextColor();
+           // Log.d(TAG,"onSingleTapConfirmed called");
+            //setNextColor();
             return false;
         }
 
@@ -112,6 +200,8 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+            //Log.d(TAG,"onScroll called, x = " + distanceX + ", y = " + distanceY);
+            //setNextColor(distanceX < 0);
             return false;
         }
 
@@ -122,34 +212,76 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+            //Log.d(TAG,"onFling called");
             return false;
         }
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        gestureDetector.onTouchEvent(event);
+       // gestureDetector.onTouchEvent(event);
+
+        float x = event.getX();
+        float y = event.getY();
+
+        int alpha = alphaByX(x);
+        setAlpha(alpha);
+
+//        Log.d(TAG,"onTouchEvent called, x = " + x + ", width = " + screenWidth + ", y = " + y + ", height = " + screenHeight);
         return super.onTouchEvent(event);
     }
 
-    private void setNextColor() {
+//    private void setNextColor() {
+//
+//        int currentColor = tcTime.getCurrentTextColor();
+//
+//        int currentIndex = -1;
+//
+//        for (int i = 0; i < colors.length; i++) {
+//            if (colors[i] == currentColor) {
+//                currentIndex = i;
+//                break;
+//            }
+//        }
+//
+//        currentIndex++;
+//
+//        int nextColor = currentIndex >= colors.length || currentIndex < 0 ? 0 : currentIndex;
+//
+//        tcTime.setTextColor(colors[nextColor]);
+//        tcDate.setTextColor(colors[nextColor]);
+//    }
+
+    private int alphaByX(float x)
+    {
+        float ratio = x / screenWidth;
+
+        if (ratio <= 0.5) // alphas from 0 to breakAlpha
+        {
+            return Math.round(ratio * 2 * breakAlpha);
+        }
+
+        // alphas from breakAlpha + 1 to 255
+        return Math.round(ratio * 255);
+    }
+
+    private void setAlpha(int alpha) {
 
         int currentColor = tcTime.getCurrentTextColor();
 
-        int currentIndex = -1;
-
-        for (int i = 0; i < colors.length; i++) {
-            if (colors[i] == currentColor) {
-                currentIndex = i;
-                break;
-            }
+        if (alpha == Color.alpha(currentColor))
+        {
+            return;
         }
 
-        currentIndex++;
+        int red = Color.red(currentColor);
+        int green = Color.green(currentColor);
+        int blue = Color.blue(currentColor);
 
-        int nextColor = currentIndex >= colors.length || currentIndex < 0 ? 0 : currentIndex;
+        int nextColor = Color.argb(alpha,red,green,blue);
 
-        tcTime.setTextColor(colors[nextColor]);
-        tcDate.setTextColor(colors[nextColor]);
+        tcTime.setTextColor(nextColor);
+        tcDate.setTextColor(nextColor);
     }
+
 }
