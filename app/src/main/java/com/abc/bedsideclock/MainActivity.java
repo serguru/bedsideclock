@@ -3,6 +3,7 @@ package com.abc.bedsideclock;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlarmManager;
+import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Point;
@@ -17,6 +18,7 @@ import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import java.sql.Time;
@@ -35,6 +37,9 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "BedsideClockActivity";
 
     private TextView tcTime, tcDate, tvAlarm;
+
+    private RelativeLayout relativeLayout;
+
     private GestureDetector gestureDetector;
 
     private Color currentColor;
@@ -45,9 +50,20 @@ public class MainActivity extends AppCompatActivity {
 
     private AlarmManager alarmManager;
 
+    public static final String SHARED_PREFS = "sharedPrefs";
+    public static final String ALPHA = "alpha";
+    private static final int defaultAlpha = 100;
+
+    private SharedPreferences sharedPreferences;
+    private SharedPreferences.Editor editor;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        sharedPreferences = getSharedPreferences(SHARED_PREFS, MODE_PRIVATE);
+        editor = sharedPreferences.edit();
 
         alarmManager = (AlarmManager)getSystemService(Activity.ALARM_SERVICE);
 
@@ -58,7 +74,11 @@ public class MainActivity extends AppCompatActivity {
         screenHeight = size.y;
 
         setContentView(R.layout.activity_main);
+
+        relativeLayout = findViewById(R.id.relativeLayout);
+
         tcTime = findViewById(R.id.tcTime);
+
 
         tcTime.addTextChangedListener(new TextWatcher() {
             @Override
@@ -77,7 +97,6 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 tcTime.setText(s.toString().toLowerCase());
-
 
                 @SuppressLint({"NewApi", "LocalSuppress"})
                 AlarmManager.AlarmClockInfo info = alarmManager.getNextAlarmClock();
@@ -162,6 +181,12 @@ public class MainActivity extends AppCompatActivity {
         AndroidGestureDetector androidGestureDetector = new AndroidGestureDetector();
 
         gestureDetector = new GestureDetector(MainActivity.this, androidGestureDetector);
+
+        int alpha = loadAlpha();
+
+        setAlpha(alpha);
+
+        //relativeLayout.setVisibility(View.VISIBLE);
     }
 
     class AndroidGestureDetector implements GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener {
@@ -231,27 +256,6 @@ public class MainActivity extends AppCompatActivity {
         return super.onTouchEvent(event);
     }
 
-//    private void setNextColor() {
-//
-//        int currentColor = tcTime.getCurrentTextColor();
-//
-//        int currentIndex = -1;
-//
-//        for (int i = 0; i < colors.length; i++) {
-//            if (colors[i] == currentColor) {
-//                currentIndex = i;
-//                break;
-//            }
-//        }
-//
-//        currentIndex++;
-//
-//        int nextColor = currentIndex >= colors.length || currentIndex < 0 ? 0 : currentIndex;
-//
-//        tcTime.setTextColor(colors[nextColor]);
-//        tcDate.setTextColor(colors[nextColor]);
-//    }
-
     private int alphaByX(float x)
     {
         float ratio = x / screenWidth;
@@ -274,6 +278,8 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        saveAlpha(alpha);
+
         int red = Color.red(currentColor);
         int green = Color.green(currentColor);
         int blue = Color.blue(currentColor);
@@ -282,6 +288,19 @@ public class MainActivity extends AppCompatActivity {
 
         tcTime.setTextColor(nextColor);
         tcDate.setTextColor(nextColor);
+        tvAlarm.setTextColor(nextColor);
+    }
+
+    private void saveAlpha(int alpha)
+    {
+        editor.putInt(ALPHA, alpha);
+        editor.apply();
+    }
+
+    private int loadAlpha()
+    {
+        int alpha = sharedPreferences.getInt(ALPHA, defaultAlpha);
+        return alpha;
     }
 
 }

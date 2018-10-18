@@ -9,6 +9,7 @@
     >
 
     <RelativeLayout
+        android:id="@+id/relativeLayout"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginStart="32dp"
@@ -28,11 +29,12 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerHorizontal="true"
-            android:text="12:00 am"
             android:textAlignment="center"
+            android:format12Hour="h:mm a"
+            android:textSize="80dp"
             android:textColor="#1AFFFFFF"
-            android:textSize="80dp" />
-        <!--android:format12Hour="h:mm"-->
+            android:text="12:00 am"
+            />
 
         <TextClock
             android:id="@+id/tcDate"
@@ -41,10 +43,11 @@
             android:layout_below="@id/tcTime"
             android:layout_centerHorizontal="true"
             android:format12Hour="EEEE, MMMM d, yyyyy"
-            android:text="Thursday, October 4, 2018"
             android:textAlignment="center"
+            android:textSize="30dp"
             android:textColor="#1AFFFFFF"
-            android:textSize="30dp" />
+            android:text="Thursday, October 4, 2018"
+            />
 
         <TextView
             android:id="@+id/tvAlarm"
@@ -52,11 +55,12 @@
             android:layout_height="wrap_content"
             android:layout_below="@id/tcDate"
             android:layout_centerHorizontal="true"
-            android:text="Alarm at 6:45 am in 7 h 12 m"
             android:textAlignment="center"
-            android:textColor="#1AFFFFFF"
             android:textSize="24dp"
-            android:visibility="gone" />
+            android:textColor="#1AFFFFFF"
+            android:text="Alarm on Oct 5 at 6:45 am in 7 h 12 m"
+            android:visibility="gone"
+             />
 
     </RelativeLayout>
 
