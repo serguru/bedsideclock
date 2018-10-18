@@ -35,32 +35,23 @@ import javax.xml.datatype.Duration;
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "BedsideClockActivity";
+    private static final String SHARED_PREFS = "sharedPrefs";
+    private static final String ALPHA = "alpha";
+    private static final int defaultAlpha = 100;
+    private static final float leftSwipeMargin = 10f; // in percent of screen width
+    private static final float rightSwipeMargin = 10f;
+    private static final int breakAlpha = 50;
 
     private TextView tcTime, tcDate, tvAlarm;
-
-    private RelativeLayout relativeLayout;
-
-    private GestureDetector gestureDetector;
-
-    private Color currentColor;
-
-    private int breakAlpha = 50;
-
     private int screenWidth, screenHeight;
-
     private AlarmManager alarmManager;
-
-    public static final String SHARED_PREFS = "sharedPrefs";
-    public static final String ALPHA = "alpha";
-    private static final int defaultAlpha = 100;
-
     private SharedPreferences sharedPreferences;
     private SharedPreferences.Editor editor;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
 
         sharedPreferences = getSharedPreferences(SHARED_PREFS, MODE_PRIVATE);
         editor = sharedPreferences.edit();
@@ -72,10 +63,6 @@ public class MainActivity extends AppCompatActivity {
         display.getSize(size);
         screenWidth = size.x;
         screenHeight = size.y;
-
-        setContentView(R.layout.activity_main);
-
-        relativeLayout = findViewById(R.id.relativeLayout);
 
         tcTime = findViewById(R.id.tcTime);
 
@@ -98,74 +85,7 @@ public class MainActivity extends AppCompatActivity {
 
                 tcTime.setText(s.toString().toLowerCase());
 
-                @SuppressLint({"NewApi", "LocalSuppress"})
-                AlarmManager.AlarmClockInfo info = alarmManager.getNextAlarmClock();
-
-                if (info == null)
-                {
-                    tvAlarm.setVisibility(View.GONE);
-                    return;
-                }
-
-                @SuppressLint({"NewApi", "LocalSuppress"})
-                long timestamp = info.getTriggerTime();
-
-                Date now = new Date();
-                Date alarmDate = new Date(timestamp);
-
-                long diff = timestamp - now.getTime();
-
-                if (diff <= 0)
-                {
-                    tvAlarm.setVisibility(View.GONE);
-                    return;
-                }
-
-                double days, hours, minutes;
-
-                String daysStr = "", hoursStr = "", minutesStr = "";
-
-                int millisecondsInDay = 1000 * 60 * 60 * 24;
-
-                days = (double)diff / (double)millisecondsInDay;
-
-                if (days > 1)
-                {
-                    long daysLong = (long)days;
-                    daysStr = " " + Long.toString(daysLong) + " d";
-                    diff -= daysLong * millisecondsInDay;
-                }
-
-                int millisecondsInHour = 1000 * 60 * 60;
-
-                hours = (double)diff / (double)millisecondsInHour;
-
-                if (hours > 1)
-                {
-                    long hoursLong = (long)hours;
-                    hoursStr = (hoursLong < 10 ? " 0" : " ") + Long.toString(hoursLong) + " h";
-                    diff -= hoursLong * millisecondsInHour;
-                }
-
-                int millisecondsInMinute = 1000 * 60;
-
-                minutes = (double)diff / (double)millisecondsInMinute;
-
-                if (minutes > 1)
-                {
-                    long minutesLong = (long)minutes;
-                    minutesStr = (minutesLong < 10 ? " 0" : " ") + Long.toString(minutesLong) + " m";
-                }
-
-                DateFormat dateFormat1 = new SimpleDateFormat("dd MMM");
-                DateFormat dateFormat2 = new SimpleDateFormat("h:mm a");
-
-                String text = "Alarm on " + dateFormat1.format(timestamp) + " at " +
-                        dateFormat2.format(timestamp).toLowerCase() +
-                        " in" + daysStr + hoursStr + minutesStr;
-
-                tvAlarm.setText(text);
-                tvAlarm.setVisibility(View.VISIBLE);
+                setAlarmMessage();
             }
 
             @Override
@@ -178,68 +98,8 @@ public class MainActivity extends AppCompatActivity {
 
         tvAlarm = findViewById(R.id.tvAlarm);
 
-        AndroidGestureDetector androidGestureDetector = new AndroidGestureDetector();
-
-        gestureDetector = new GestureDetector(MainActivity.this, androidGestureDetector);
-
         int alpha = loadAlpha();
-
         setAlpha(alpha);
-
-        //relativeLayout.setVisibility(View.VISIBLE);
-    }
-
-    class AndroidGestureDetector implements GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener {
-
-        @Override
-        public boolean onSingleTapConfirmed(MotionEvent e) {
-           // Log.d(TAG,"onSingleTapConfirmed called");
-            //setNextColor();
-            return false;
-        }
-
-        @Override
-        public boolean onDoubleTap(MotionEvent e) {
-            return false;
-        }
-
-        @Override
-        public boolean onDoubleTapEvent(MotionEvent e) {
-            return false;
-        }
-
-        @Override
-        public boolean onDown(MotionEvent e) {
-            return false;
-        }
-
-        @Override
-        public void onShowPress(MotionEvent e) {
-
-        }
-
-        @Override
-        public boolean onSingleTapUp(MotionEvent e) {
-            return false;
-        }
-
-        @Override
-        public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
-            //Log.d(TAG,"onScroll called, x = " + distanceX + ", y = " + distanceY);
-            //setNextColor(distanceX < 0);
-            return false;
-        }
-
-        @Override
-        public void onLongPress(MotionEvent e) {
-
-        }
-
-        @Override
-        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-            //Log.d(TAG,"onFling called");
-            return false;
-        }
     }
 
     @Override
@@ -247,10 +107,14 @@ public class MainActivity extends AppCompatActivity {
        // gestureDetector.onTouchEvent(event);
 
         float x = event.getX();
-        float y = event.getY();
+        //float y = event.getY();
 
         int alpha = alphaByX(x);
-        setAlpha(alpha);
+
+        if (alpha >= 0 && alpha <= 255)
+        {
+            setAlpha(alpha);
+        }
 
 //        Log.d(TAG,"onTouchEvent called, x = " + x + ", width = " + screenWidth + ", y = " + y + ", height = " + screenHeight);
         return super.onTouchEvent(event);
@@ -258,7 +122,24 @@ public class MainActivity extends AppCompatActivity {
 
     private int alphaByX(float x)
     {
-        float ratio = x / screenWidth;
+        int leftMarginWidth =  (int)(leftSwipeMargin / 100f * screenWidth);
+        int rightMarginWidth =  (int)(rightSwipeMargin / 100f * screenWidth);
+
+        if (x <= leftMarginWidth)
+        {
+            return -1;
+        }
+
+        if (x >= screenWidth - rightMarginWidth)
+        {
+            return 256;
+        }
+
+        x -= leftMarginWidth;
+
+        int workingWidth =  screenWidth - leftMarginWidth - rightMarginWidth;
+
+        float ratio = x / workingWidth;
 
         if (ratio <= 0.5) // alphas from 0 to breakAlpha
         {
@@ -301,6 +182,79 @@ public class MainActivity extends AppCompatActivity {
     {
         int alpha = sharedPreferences.getInt(ALPHA, defaultAlpha);
         return alpha;
+    }
+
+    private void setAlarmMessage()
+    {
+        @SuppressLint({"NewApi", "LocalSuppress"})
+        AlarmManager.AlarmClockInfo info = alarmManager.getNextAlarmClock();
+
+        if (info == null)
+        {
+            tvAlarm.setVisibility(View.GONE);
+            return;
+        }
+
+        @SuppressLint({"NewApi", "LocalSuppress"})
+        long timestamp = info.getTriggerTime();
+
+        Date now = new Date();
+        Date alarmDate = new Date(timestamp);
+
+        long diff = timestamp - now.getTime();
+
+        if (diff <= 0)
+        {
+            tvAlarm.setVisibility(View.GONE);
+            return;
+        }
+
+        double days, hours, minutes;
+
+        String daysStr = "", hoursStr = "", minutesStr = "";
+
+        int millisecondsInDay = 1000 * 60 * 60 * 24;
+
+        days = (double)diff / (double)millisecondsInDay;
+
+        if (days > 1)
+        {
+            long daysLong = (long)days;
+            daysStr = " " + Long.toString(daysLong) + " d";
+            diff -= daysLong * millisecondsInDay;
+        }
+
+        int millisecondsInHour = 1000 * 60 * 60;
+
+        hours = (double)diff / (double)millisecondsInHour;
+
+        if (hours > 1)
+        {
+            long hoursLong = (long)hours;
+            hoursStr = (hoursLong < 10 ? " 0" : " ") + Long.toString(hoursLong) + " h";
+            diff -= hoursLong * millisecondsInHour;
+        }
+
+        int millisecondsInMinute = 1000 * 60;
+
+        minutes = (double)diff / (double)millisecondsInMinute;
+
+        if (minutes > 1)
+        {
+            long minutesLong = (long)minutes;
+            minutesStr = (minutesLong < 10 ? " 0" : " ") + Long.toString(minutesLong) + " m";
+        }
+
+        DateFormat dateFormat1 = new SimpleDateFormat("dd MMM");
+        DateFormat dateFormat2 = new SimpleDateFormat("h:mm a");
+
+        String text = "Alarm on " + dateFormat1.format(timestamp) + " at " +
+                dateFormat2.format(timestamp).toLowerCase() +
+                " in" + daysStr + hoursStr + minutesStr;
+
+        tvAlarm.setText(text);
+        tvAlarm.setVisibility(View.VISIBLE);
+
     }
 
 }
