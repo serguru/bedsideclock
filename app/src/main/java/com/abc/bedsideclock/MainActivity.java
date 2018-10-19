@@ -4,7 +4,6 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlarmManager;
 import android.content.SharedPreferences;
-import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.support.v4.view.GestureDetectorCompat;
@@ -12,52 +11,58 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.util.Log;
-import android.util.TypedValue;
 import android.view.Display;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.WindowManager;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
-
-import java.sql.Time;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.util.Calendar;
 import java.util.Date;
-import java.util.TimeZone;
-
-import javax.xml.datatype.Duration;
 
 public class MainActivity extends AppCompatActivity
         implements GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener {
 
     private static final String TAG = "BedsideClockActivity";
     private static final String SHARED_PREFS = "sharedPrefs";
-    private static final String ALPHA = "alpha";
-    private static final String COLORINDEX = "colorIndex";
-    private static final int defaultAlpha = 100;
-    private static final int defaultColorIndex = 0;
+    private static final String COLOR = "color";
     private static final float leftSwipeMargin = 10f; // in percent of screen width
     private static final float rightSwipeMargin = 10f;
     private static final int breakAlpha = 50;
 
     private TextView tcTime, tcDate, tvAlarm;
-    private int screenWidth, screenHeight;
+    private int screenWidth;
     private AlarmManager alarmManager;
     private SharedPreferences sharedPreferences;
     private SharedPreferences.Editor editor;
 
-    private int currentColorIndex = 0;
-
     private static final int[] colors = {Color.WHITE, Color.RED, Color.YELLOW,
             Color.GREEN, Color.BLUE, Color.CYAN, Color.MAGENTA };
 
+    private int currentColor = colors[0];
     private GestureDetectorCompat mDetector;
+
+    private TextView[] views = {null, null, null};
+
+    private void setCurrentColor(int value)
+    {
+        currentColor = value;
+
+        editor.putInt(COLOR, value);
+        editor.apply();
+
+        for (int i = 0; i < views.length; i++)
+        {
+            TextView view = views[i];
+
+            if (view.getCurrentTextColor() == currentColor)
+            {
+                continue;
+            }
+
+            view.setTextColor(currentColor);
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,9 +81,9 @@ public class MainActivity extends AppCompatActivity
         Point size = new Point();
         display.getSize(size);
         screenWidth = size.x;
-        screenHeight = size.y;
 
         tcTime = findViewById(R.id.tcTime);
+        views[0] = tcTime;
         tcTime.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -107,35 +112,16 @@ public class MainActivity extends AppCompatActivity
         });
 
         tcDate = findViewById(R.id.tcDate);
+        views[1] = tcDate;
         tvAlarm = findViewById(R.id.tvAlarm);
+        views[2] = tvAlarm;
 
-        int alpha = loadAlpha();
-        setAlpha(alpha);
-
-        loadColorIndex();
-
-        setControlsColor(colors[currentColorIndex]);
+        int color = sharedPreferences.getInt(COLOR, colors[0]);
+        setCurrentColor(color);
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-
-        float x = event.getX();
-        float y = event.getY();
-
-        int value;
-
-        if (y < screenHeight / 2f)
-        {
-            value = alphaByX(x);
-
-            if (value >= 0 && value <= 255)
-            {
-                setAlpha(value);
-            }
-        }
-
-
 //        Log.d(TAG,"onTouchEvent called, x = " + x + ", width = " + screenWidth + ", y = " + y + ", height = " + screenHeight);
 
         if (this.mDetector.onTouchEvent(event)) {
@@ -145,20 +131,56 @@ public class MainActivity extends AppCompatActivity
         return super.onTouchEvent(event);
     }
 
-    private void setNextColor()
+    private int getColorIndex(int color)
     {
-        currentColorIndex++;
+        int red = Color.red(color);
+        int green = Color.green(color);
+        int blue = Color.blue(color);
 
-        if (currentColorIndex < 0 || currentColorIndex >= colors.length)
+        color = Color.rgb(red, green, blue);
+
+        for(int i = 0; i < colors.length; i++)
         {
-            currentColorIndex = 0;
+            if (colors[i] == color)
+            {
+                return i;
+            }
         }
 
-        saveColorIndex();
-
-        setControlsColor(colors[currentColorIndex]);
+        return -1;
     }
 
+    private void setNextColor()
+    {
+        int nextIndex = getColorIndex(currentColor);
+
+        nextIndex++;
+
+        if (nextIndex < 0 || nextIndex >= colors.length)
+        {
+            nextIndex = 0;
+        }
+
+        int color = colors[nextIndex];
+
+        int alpha = Color.alpha(currentColor);
+        int red = Color.red(color);
+        int green = Color.green(color);
+        int blue = Color.blue(color);
+
+        color = Color.argb(alpha, red, green, blue);
+        setCurrentColor(color);
+    }
+
+    private void setAlpha(int alpha)
+    {
+        int red = Color.red(currentColor);
+        int green = Color.green(currentColor);
+        int blue = Color.blue(currentColor);
+
+        int color = Color.argb(alpha,red,green,blue);
+        setCurrentColor(color);
+    }
 
     private int alphaByX(float x)
     {
@@ -189,116 +211,6 @@ public class MainActivity extends AppCompatActivity
         // alphas from breakAlpha + 1 to 255
         return Math.round(ratio * 255);
     }
-
-    private void rgbByX(float x, int[] rgb)
-    {
-        rgb[0] = -1;
-        rgb[1] = -1;
-        rgb[2] = -1;
-
-        int leftMarginWidth =  (int)(leftSwipeMargin / 100f * screenWidth);
-        int rightMarginWidth =  (int)(rightSwipeMargin / 100f * screenWidth);
-
-        if (x <= leftMarginWidth)
-        {
-            return;
-        }
-
-        if (x >= screenWidth - rightMarginWidth)
-        {
-            return;
-        }
-
-        x -= leftMarginWidth;
-
-        int workingWidth =  screenWidth - leftMarginWidth - rightMarginWidth;
-
-        int onethird = workingWidth / 3;
-
-        if (x <= onethird)
-        {
-            rgb[0] = Math.round(x/onethird * 255);
-            return;
-        }
-
-        if (x <= onethird * 2)
-        {
-            x -= onethird;
-            rgb[1] = Math.round(x/onethird * 255);
-            return;
-        }
-
-        x -= onethird * 2;
-        rgb[2] = Math.round(x/onethird * 255);
-    }
-
-
-    private void setRGB(int[] rgb)
-    {
-        int currentColor = tcTime.getCurrentTextColor();
-
-        int alpha = Color.alpha(currentColor);
-        int red = rgb[0] >= 0 ? rgb[0] : Color.red(currentColor);
-        int green = rgb[1] >= 0 ? rgb[1] : Color.green(currentColor);
-        int blue = rgb[2] >= 0 ? rgb[2] : Color.blue(currentColor);
-
-        int color = Color.argb(alpha,red,green,blue);
-
-        setControlsColor(color);
-
-    }
-
-    private void setControlsColor(int color)
-    {
-        tcTime.setTextColor(color);
-        tcDate.setTextColor(color);
-        tvAlarm.setTextColor(color);
-    }
-
-    private void setAlpha(int alpha) {
-
-        int currentColor = tcTime.getCurrentTextColor();
-
-        if (alpha == Color.alpha(currentColor))
-        {
-            return;
-        }
-
-        saveAlpha(alpha);
-
-        int red = Color.red(currentColor);
-        int green = Color.green(currentColor);
-        int blue = Color.blue(currentColor);
-
-        int color = Color.argb(alpha,red,green,blue);
-
-        setControlsColor(color);
-    }
-
-    private void saveAlpha(int alpha)
-    {
-        editor.putInt(ALPHA, alpha);
-        editor.apply();
-    }
-
-    private int loadAlpha()
-    {
-        int alpha = sharedPreferences.getInt(ALPHA, defaultAlpha);
-        return alpha;
-    }
-
-    private void saveColorIndex()
-    {
-        editor.putInt(COLORINDEX, currentColorIndex);
-        editor.apply();
-    }
-
-    private void loadColorIndex()
-    {
-        currentColorIndex = sharedPreferences.getInt(COLORINDEX, defaultColorIndex);
-    }
-
-
 
     private void setAlarmMessage()
     {
@@ -370,19 +282,12 @@ public class MainActivity extends AppCompatActivity
 
         tvAlarm.setText(text);
         tvAlarm.setVisibility(View.VISIBLE);
-
     }
 
     @Override
     public boolean onSingleTapConfirmed(MotionEvent e) {
-
-        float y = e.getY();
-
-        if (y >= screenHeight / 2f)
-        {
-            setNextColor();
-        }
-
+        setNextColor();
+        //Log.d(TAG,"onSingleTapConfirmed called");
         return false;
     }
 
@@ -413,6 +318,16 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+
+        float x = e2.getX();
+        int value;
+        value = alphaByX(x);
+
+        if (value >= 0 && value <= 255)
+        {
+            setAlpha(value);
+        }
+        //Log.d(TAG,"onScroll called");
         return false;
     }
 
